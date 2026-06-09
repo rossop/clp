@@ -1,0 +1,9 @@
+# compiled binary (matches the module name)
+clp
+
+# compiled test binaries (go test -c outputs *.test — not your _test.go source files)
+*.test
+
+# other Go build outputs
+*.exe
+*.out
