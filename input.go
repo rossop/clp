@@ -1,9 +1,51 @@
 package main
 
-// RunInputLoop runs the readline prompt in the right tmux pane.
-// paneID is the tmux target for the Claude pane (e.g. "clp-default:0.0").
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/chzyer/readline"
+)
 
 func RunInputLoop(paneID string) {
-	// Implement in issue #3
-	_ = paneID
+	historyFile := os.ExpandEnv("$HOME/.clp_history")
+
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:      "You: ",
+		HistoryFile: historyFile,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: could not start readline: %v\n", err)
+		os.Exit(1)
+	}
+	defer rl.Close()
+
+	for {
+		line, err := rl.Readline()
+		if err != nil {
+			// Ctrl-D or EOF — exit cleanly, leave Claude pane running
+			break
+		}
+
+		input := strings.TrimSpace(line)
+		if input == "" {
+			continue
+		}
+
+		switch input {
+		case "/quit":
+			// Exit input loop — Claude pane stays running full-width
+			return
+		case "/kill":
+			// Kill the entire tmux session (both panes)
+			sessionID, _, _ := strings.Cut(paneID, ":")
+			exec.Command("tmux", "kill-session", "-t", sessionID).Run()
+			return
+		default:
+			// Forward message to Claude pane as keystrokes
+			exec.Command("tmux", "send-keys", "-t", paneID, input, "Enter").Run()
+		}
+	}
 }
